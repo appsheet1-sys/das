@@ -1,0 +1,130 @@
+{
+  "entities": {
+    "Biodata": {
+      "title": "Biodata",
+      "description": "Dasrialdi's public biodata information and custom slogans.",
+      "type": "object",
+      "properties": {
+        "nama": {
+          "type": "string",
+          "description": "Full name with degree"
+        },
+        "pendidikanTerakhir": {
+          "type": "string",
+          "description": "Last educational degree"
+        },
+        "instansiPendidikan": {
+          "type": "string",
+          "description": "Education institution name"
+        },
+        "jabatan": {
+          "type": "string",
+          "description": "Main corporate rank / functional designation"
+        },
+        "jabatanTambahan": {
+          "type": "string",
+          "description": "Additional roles or task assignment"
+        },
+        "tahunMasuk": {
+          "type": "number",
+          "description": "The year of designation/service entry"
+        },
+        "predikatKinerja": {
+          "type": "object",
+          "description": "Performance reviews indexed by year"
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "User profile avatar image in Base64 or URL"
+        },
+        "heroSlogan": {
+          "type": "string",
+          "description": "Top banner hero vision statement"
+        },
+        "biodataSlogan": {
+          "type": "string",
+          "description": "Slogan for biodata grid section"
+        },
+        "capaianSlogan": {
+          "type": "string",
+          "description": "Slogan for accomplishments section"
+        },
+        "pengalamanSlogan": {
+          "type": "string",
+          "description": "Slogan for online innovations list section"
+        },
+        "rekomendasiSlogan": {
+          "type": "string",
+          "description": "Slogan for modern testimonials section"
+        }
+      },
+      "required": [
+        "nama",
+        "pendidikanTerakhir",
+        "jabatan",
+        "jabatanTambahan",
+        "tahunMasuk",
+        "predikatKinerja"
+      ]
+    },
+    "PortfolioItem": {
+      "title": "PortfolioItem",
+      "description": "Individually managed experience, project, or application contribution.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the item"
+        },
+        "title": {
+          "type": "string",
+          "description": "Name/Title of innovation or management achievement"
+        },
+        "category": {
+          "type": "string",
+          "description": "Section categorizer, either manajerial or aplikasi"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed explanation of work done and outcomes"
+        },
+        "evidenceUrl": {
+          "type": "string",
+          "description": "Optional physical reference URL or cloud file link"
+        },
+        "evidenceTitle": {
+          "type": "string",
+          "description": "Helper text displaying on action button link"
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Optional supporting screenshot representation"
+        },
+        "tags": {
+          "type": "array",
+          "description": "Skills and thematic tag values"
+        },
+        "iconName": {
+          "type": "string",
+          "description": "Lucide icon string name mapping"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "category",
+        "description"
+      ]
+    }
+  },
+  "firestore": {
+    "/biodata/{docId}": {
+      "schema": "Biodata",
+      "description": "The master biodata single document. Expected docId is 'info'."
+    },
+    "/portfolioItems/{itemId}": {
+      "schema": "PortfolioItem",
+      "description": "List of editable experience and technical dynamic achievements."
+    }
+  }
+}

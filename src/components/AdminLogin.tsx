@@ -1,6 +1,8 @@
 import React, { useState, useEffect, FormEvent } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Lock, Unlock, Eye, EyeOff, User, X, LogIn, AlertCircle } from "lucide-react";
+import { signInWithPopup } from "firebase/auth";
+import { auth, googleProvider } from "../firebase";
 
 interface AdminLoginProps {
   isAdmin: boolean;
@@ -13,6 +15,29 @@ export default function AdminLogin({ isAdmin, onLoginStatusChange }: AdminLoginP
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [isLoggingInGoogle, setIsLoggingInGoogle] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    setIsLoggingInGoogle(true);
+    setErrorMsg("");
+    try {
+      console.log("Memulai Firebase Google Pop-up Auth...");
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      if (user && user.email === "appsheet1@atim.ac.id") {
+        console.log("Berhasil diverifikasi sebagai appsheet1@atim.ac.id!");
+        onLoginStatusChange(true);
+        setIsOpen(false);
+      } else {
+        setErrorMsg("Sesi Google aktif, namun email ini bukan email admin resmi (appsheet1@atim.ac.id).");
+      }
+    } catch (error: any) {
+      console.error("Gagal melakukan autentikasi Google:", error);
+      setErrorMsg("Gagal melakukan Google Sign-In: " + (error.message || error));
+    } finally {
+      setIsLoggingInGoogle(false);
+    }
+  };
 
   const handleLoginSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -96,6 +121,28 @@ export default function AdminLogin({ isAdmin, onLoginStatusChange }: AdminLoginP
                 <p className="text-xs text-slate-400 mt-1 font-light">
                   Silakan masuk untuk mengelola bukti fisik / link URL dan lampiran gambar inovasi.
                 </p>
+              </div>
+
+              {/* Google Sign In option (First choice for real DB synchronization) */}
+              <button
+                type="button"
+                disabled={isLoggingInGoogle}
+                onClick={handleGoogleLogin}
+                className="w-full mb-4.5 flex items-center justify-center gap-2.5 py-3 rounded-xl text-xs font-semibold text-slate-800 border border-slate-200 bg-white hover:bg-slate-50 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 disabled:opacity-50"
+              >
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                  <path
+                    fill="#EA4335"
+                    d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114A5.69 5.69 0 0 1 8.3 12.83a5.69 5.69 0 0 1 5.69-5.69c2.324 0 4.298 1.4 5.15 3.385l3.96-3.076C20.69 3.518 16.711 1.455 12.24 1.455 5.922 1.455.8 6.577.8 12.895s5.122 11.44 11.44 11.44c6.318 0 11.44-5.122 11.44-11.44 0-.895-.12-1.78-.344-2.61H12.24Z"
+                  />
+                </svg>
+                <span>{isLoggingInGoogle ? "Menghubungkan..." : "Hubungkan Google (Sinkronisasi Live)"}</span>
+              </button>
+
+              <div className="flex items-center gap-2 mb-4.5">
+                <div className="h-px flex-1 bg-slate-100" />
+                <span className="text-[9px] text-slate-400 font-mono tracking-wider uppercase">atau sandi lokal</span>
+                <div className="h-px flex-1 bg-slate-100" />
               </div>
 
               <form onSubmit={handleLoginSubmit} className="space-y-4">

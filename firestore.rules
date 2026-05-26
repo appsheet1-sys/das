@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // Global Utilities
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    
+    function isSignedIn() { 
+      return request.auth != null; 
+    }
+    
+    function isVerifiedEmail(email) {
+      return isSignedIn() && request.auth.token.email_verified == true && request.auth.token.email == email;
+    }
+    
+    function isAdminUser() {
+      // High-precision lock to Sdr. Dasrialdi's official account email
+      return isVerifiedEmail('appsheet1@atim.ac.id');
+    }
+    
+    // Core Collections Mapping
+    match /biodata/{docId} {
+      allow read: if true; 
+      allow write: if docId == 'info' && isAdminUser() && isValidBiodata(request.resource.data);
+    }
+    
+    match /portfolioItems/{itemId} {
+      allow read: if true;
+      allow delete: if isValidId(itemId) && isAdminUser();
+      allow create, update: if isValidId(itemId) && isAdminUser() && isValidPortfolioItem(request.resource.data);
+    }
+    
+    // Validation Blueprints
+    function isValidBiodata(data) {
+      return data.keys().hasAll(['nama', 'pendidikanTerakhir', 'jabatan', 'jabatanTambahan', 'tahunMasuk', 'predikatKinerja'])
+        && data.nama is string && data.nama.size() <= 200
+        && data.pendidikanTerakhir is string && data.pendidikanTerakhir.size() <= 200
+        && data.jabatan is string && data.jabatan.size() <= 200
+        && data.jabatanTambahan is string && data.jabatanTambahan.size() <= 200
+        && (data.tahunMasuk is int || data.tahunMasuk is float)
+        && data.predikatKinerja is map;
+    }
+    
+    function isValidPortfolioItem(data) {
+      return data.keys().hasAll(['id', 'title', 'category', 'description'])
+        && data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() <= 300
+        && data.category is string && (data.category == 'manajerial' || data.category == 'aplikasi')
+        && data.description is string && data.description.size() <= 2000;
+    }
+  }
+}

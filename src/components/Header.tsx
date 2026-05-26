@@ -60,8 +60,13 @@ export default function Header({ biodata, isAdmin, onAdminLoginTrigger, onLogout
           
           {/* Brand/Logo Layout */}
           <a href="#banner" className="flex items-center gap-3 select-none group">
-            <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-900 flex items-center justify-center text-white font-extrabold shadow-sm group-hover:scale-105 transition-all">
-              <Shield className="w-5 h-5 text-emerald-400" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden border border-slate-200/60 flex items-center justify-center bg-slate-50 shadow-xs group-hover:scale-105 transition-all">
+              <img
+                src={biodata.photoUrl || "/src/assets/images/pixar_asn_char_1779809032396.png"}
+                alt="Dasrialdi Logo"
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
             </div>
             <div>
               <h1 className="text-sm font-bold font-display text-slate-900 tracking-tight leading-none group-hover:text-slate-950">

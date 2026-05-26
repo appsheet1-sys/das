@@ -16,8 +16,14 @@ import {
 import { PortfolioItem, Biodata } from "./types";
 import { Mail, MapPin, Building, Globe, Send, ShieldAlert, BadgeCheck, FileCheck } from "lucide-react";
 
+// Import Firebase config & helpers
+import { db, auth, handleFirestoreError, OperationType } from "./firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, getDocFromServer } from "firebase/firestore";
+
 export default function App() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false); // Controls the admin's editable values and slogans modal
+  const [isLoading, setIsLoading] = useState(true);
   
   // Sync state with LocalStorage for persistent admin edits
   const [biodata, setBiodata] = useState<Biodata>(() => {
@@ -48,14 +54,86 @@ export default function App() {
     return localStorage.getItem("dasrialdi_portfolio_is_admin") === "true";
   });
 
+  // 1. Initial Data Fetching from Firestore
+  useEffect(() => {
+    const testAndLoadConnection = async () => {
+      try {
+        console.log("Menghubungkan ke database Firebase...");
+        const biodataRef = doc(db, "biodata", "info");
+        
+        // Retrieve biodata from live server
+        const biodataSnap = await getDocFromServer(biodataRef);
+        if (biodataSnap.exists()) {
+          setBiodata(biodataSnap.data() as Biodata);
+          localStorage.setItem("dasrialdi_portfolio_biodata", JSON.stringify(biodataSnap.data()));
+        } else {
+          console.log("Dokumen biodata/info belum ada di database.");
+        }
+
+        // Retrieve items from live server
+        const itemsColl = collection(db, "portfolioItems");
+        const itemsSnap = await getDocs(itemsColl);
+        if (!itemsSnap.empty) {
+          const items: PortfolioItem[] = [];
+          itemsSnap.forEach((itemDoc) => {
+            items.push(itemDoc.data() as PortfolioItem);
+          });
+          setPortfolioItems(items);
+          localStorage.setItem("dasrialdi_portfolio_items", JSON.stringify(items));
+        } else {
+          console.log("Koleksi portfolioItems belum ada di database.");
+        }
+      } catch (error) {
+        console.warn("Koneksi awal database offline atau belum di-seed, menggunakan data lokal:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    testAndLoadConnection();
+  }, []);
+
+  // 2. Track Admin Session through Firebase Auth (Google Sign-In integration)
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && user.email === "appsheet1@atim.ac.id") {
+        console.log("Sesi Google Terverifikasi untuk Administrator:", user.email);
+        setIsAdmin(true);
+        localStorage.setItem("dasrialdi_portfolio_is_admin", "true");
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   // Handle Login State Change
-  const handleAdminLoginStatusChange = (status: boolean) => {
+  const handleAdminLoginStatusChange = async (status: boolean) => {
     setIsAdmin(status);
     localStorage.setItem("dasrialdi_portfolio_is_admin", status ? "true" : "false");
+    if (!status) {
+      try {
+        await signOut(auth);
+        console.log("Sesi Firebase Auth berhasil ditutup.");
+      } catch (err) {
+        console.error("Gagal mengeluarkan akun dari Firebase Auth:", err);
+      }
+    }
+  };
+
+  // Shared updater for biodata & slogan values
+  const handleSaveBiodata = async (updated: Biodata) => {
+    setBiodata(updated);
+    localStorage.setItem("dasrialdi_portfolio_biodata", JSON.stringify(updated));
+    try {
+      const biodataRef = doc(db, "biodata", "info");
+      await setDoc(biodataRef, updated);
+      console.log("Biodata berhasil tersimpan di database cloud.");
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, "biodata/info");
+    }
   };
 
   // Admin save modified or added item
-  const handleSavePortfolioItem = (newItem: PortfolioItem) => {
+  const handleSavePortfolioItem = async (newItem: PortfolioItem) => {
     setPortfolioItems((prev) => {
       const exists = prev.some((item) => item.id === newItem.id);
       let updated: PortfolioItem[];
@@ -67,15 +145,31 @@ export default function App() {
       localStorage.setItem("dasrialdi_portfolio_items", JSON.stringify(updated));
       return updated;
     });
+
+    try {
+      const itemRef = doc(db, "portfolioItems", newItem.id);
+      await setDoc(itemRef, newItem);
+      console.log(`Portfolio item ${newItem.id} berhasil tersimpan di database cloud.`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `portfolioItems/${newItem.id}`);
+    }
   };
 
   // Admin delete item
-  const handleDeletePortfolioItem = (id: string) => {
+  const handleDeletePortfolioItem = async (id: string) => {
     setPortfolioItems((prev) => {
       const updated = prev.filter((item) => item.id !== id);
       localStorage.setItem("dasrialdi_portfolio_items", JSON.stringify(updated));
       return updated;
     });
+
+    try {
+      const itemRef = doc(db, "portfolioItems", id);
+      await deleteDoc(itemRef);
+      console.log(`Portfolio item ${id} berhasil dihapus dari database cloud.`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `portfolioItems/${id}`);
+    }
   };
 
   // Handle CTA button click to scroll down to achievements
@@ -104,16 +198,20 @@ export default function App() {
         isAdmin={isAdmin}
         onPhotoUpload={(base64Url) => {
           const updated = { ...biodata, photoUrl: base64Url };
-          setBiodata(updated);
-          localStorage.setItem("dasrialdi_portfolio_biodata", JSON.stringify(updated));
+          handleSaveBiodata(updated);
         }}
       />
 
       {/* Admin Mode Badge Indicator */}
       {isAdmin && (
-        <div className="bg-amber-500 text-white font-semibold text-center text-xs py-2 px-4 shadow-xs sticky top-[73px] z-30 flex items-center justify-center gap-2">
-          <ShieldAlert className="w-4 h-4 animate-bounce" />
-          <span>Anda sedang dalam Mode Administrator (admin). Anda dapat mengedit foto profil, biodata, pendidikan, serta semua slogan deskripsi teks halaman web ini.</span>
+        <div className="bg-slate-900 border-b border-white/10 text-white font-semibold text-center text-xs py-2 px-4 shadow-xs sticky top-[73px] z-30 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+          <ShieldAlert className="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
+          <span className="font-light">Mode Administrator Aktif.</span>
+          {auth.currentUser?.email === "appsheet1@atim.ac.id" ? (
+            <span className="text-emerald-400 font-mono text-[11px] font-bold">● CLOUD DB PERSISTENT (FIREBASE SINKRON)</span>
+          ) : (
+            <span className="text-amber-300 font-mono text-[11px]">SINKRONISASI LOKAL (Gunakan login Google di tombol pojok kanan bawah jika ingin online ke semua device)</span>
+          )}
         </div>
       )}
 
@@ -148,8 +246,7 @@ export default function App() {
           biodata={biodata}
           onClose={() => setIsEditModalOpen(false)}
           onSave={(updated) => {
-            setBiodata(updated);
-            localStorage.setItem("dasrialdi_portfolio_biodata", JSON.stringify(updated));
+            handleSaveBiodata(updated);
             setIsEditModalOpen(false);
           }}
         />
@@ -218,7 +315,11 @@ export default function App() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center text-[10px] font-mono text-slate-500 gap-4">
           <p>© 2026 Dasrialdi, A.Md. Semua hak cipta dilindungi undang-undang.</p>
           <div className="flex items-center gap-4">
-            <span>SINKRONISASI: LOCALSTORAGE (AKTIF)</span>
+            {auth.currentUser?.email === "appsheet1@atim.ac.id" ? (
+              <span className="text-emerald-500 font-bold">DATABASE CLOUD: TERHUBUNG (SINKRON)</span>
+            ) : (
+              <span>DATABASE LOCAL SYNC (FIREBASE READY)</span>
+            )}
             <span>DIREKTORAT JENDERAL BPSDMI</span>
           </div>
         </div>
