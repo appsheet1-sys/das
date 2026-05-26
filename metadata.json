@@ -1,0 +1,6 @@
+{
+  "name": "Portofolio Dasrialdi - ASN Pranata Komputer",
+  "description": "Website portofolio personal Dasrialdi, A.Md - Fungsional Pranata Komputer Terampil dan Kordinator Rumah tangga.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
